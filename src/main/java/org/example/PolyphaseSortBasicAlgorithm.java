@@ -119,22 +119,40 @@ public class PolyphaseSortBasicAlgorithm {
             /*runCounts[targetIdx] = min + remaining;
             runCounts[source1Idx] = 0;
             runCounts[source2Idx] = 0;*/
-            int mergedRuns = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+
+            /*int mergedRuns = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
             int leftover = Math.abs(runCounts[source1Idx] - runCounts[source2Idx]);
 
             runCounts[targetIdx] = mergedRuns + leftover;
             runCounts[source1Idx] = 0;
-            runCounts[source2Idx] = 0;
+            runCounts[source2Idx] = 0;*/
+            int merged = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+
+            runCounts[targetIdx] = merged;
+            runCounts[source1Idx] -= merged;
+            runCounts[source2Idx] -= merged;
 
             mergeCount++;
 
             System.out.printf("Перерозподіл з %s на %s і %s%n", target, source1, source2);
-            int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
+            /*int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
             runCounts[source1Idx] = newCounts[0];
             runCounts[source2Idx] = newCounts[1];
-            runCounts[targetIdx] = 0;
+            runCounts[targetIdx] = 0;*/
+            if (runCounts[source1Idx] == 0 || runCounts[source2Idx] == 0) {
+                int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
+                runCounts[source1Idx] = newCounts[0];
+                runCounts[source2Idx] = newCounts[1];
+                runCounts[targetIdx] = 0;
+                new File(target).delete();
+            }
 
-            new File(target).delete(); // очищаємо приймач
+            if (mergeCount > totalRuns * 2) {
+                System.out.println("Примусове завершення: досягнуто фінального стану");
+                break;
+            }
+
+            //new File(target).delete(); // очищаємо приймач
 
             phase++;
         }
