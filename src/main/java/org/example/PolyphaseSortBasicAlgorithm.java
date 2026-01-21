@@ -98,6 +98,11 @@ public class PolyphaseSortBasicAlgorithm {
             /*int targetIdx = phase % 3;
             int source1Idx = (phase + 1) % 3;
             int source2Idx = (phase + 2) % 3;*/
+
+            if (countNonZero(runCounts) < 2) {
+                break;
+            }
+
             int[] choice = chooseFilesToMerge(runCounts);
             int targetIdx = choice[0];
             int source1Idx = choice[1];
@@ -107,15 +112,22 @@ public class PolyphaseSortBasicAlgorithm {
             String source1 = tempFiles[source1Idx];
             String source2 = tempFiles[source2Idx];
 
-            System.out.printf("Фаза %d, Злиття #%d: %s + %s → %s (серій: %d + %d → %d)%n",
-                    phase + 1, mergeCount + 1, source1, source2, target,
+            int merged = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+
+
+            System.out.printf("Фаза %d, Злиття #%d: %s + %s -> %s (серій: %d + %d -> %d)%n",
+                    phase + 1,
+                    mergeCount + 1,
+                    source1, source2, target,
                     runCounts[source1Idx], runCounts[source2Idx],
                     Math.min(runCounts[source1Idx], runCounts[source2Idx]) + Math.abs(runCounts[source1Idx] - runCounts[source2Idx]));
 
             mergeTwoRuns(source1, source2, target);
 
-            int min = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+            /*int min = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
             int remaining = Math.abs(runCounts[source1Idx] - runCounts[source2Idx]);
+            */
+
             /*runCounts[targetIdx] = min + remaining;
             runCounts[source1Idx] = 0;
             runCounts[source2Idx] = 0;*/
@@ -126,35 +138,53 @@ public class PolyphaseSortBasicAlgorithm {
             runCounts[targetIdx] = mergedRuns + leftover;
             runCounts[source1Idx] = 0;
             runCounts[source2Idx] = 0;*/
-            int merged = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
 
-            runCounts[targetIdx] = merged;
+            //int merged = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+
+            int a = runCounts[source1Idx];
+            int b = runCounts[source2Idx];
+            //int maxRuns = Math.max(a, b);
+
+            /*runCounts[targetIdx] = merged;
             runCounts[source1Idx] -= merged;
-            runCounts[source2Idx] -= merged;
+            runCounts[source2Idx] -= merged;*/
+
+            /*runCounts[targetIdx] = maxRuns;
+            runCounts[source1Idx] = 0;
+            runCounts[source2Idx] = 0;*/
+            int mergedRuns = Math.min(a, b);
+            int leftover = Math.abs(a - b);
+
+            runCounts[targetIdx] = mergedRuns;
+            runCounts[source1Idx] = 0;
+            runCounts[source2Idx] = leftover;
 
             mergeCount++;
 
-            System.out.printf("Перерозподіл з %s на %s і %s%n", target, source1, source2);
-            /*int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
+            //System.out.printf("Перерозподіл з %s на %s і %s%n", target, source1, source2);
+
+            int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
             runCounts[source1Idx] = newCounts[0];
             runCounts[source2Idx] = newCounts[1];
-            runCounts[targetIdx] = 0;*/
-            if (runCounts[source1Idx] == 0 || runCounts[source2Idx] == 0) {
+            runCounts[targetIdx] = 0;
+
+            /*if (runCounts[source1Idx] == 0 || runCounts[source2Idx] == 0) {
                 int[] newCounts = distributeRuns(target, source1, source2, runCounts[targetIdx]);
                 runCounts[source1Idx] = newCounts[0];
                 runCounts[source2Idx] = newCounts[1];
                 runCounts[targetIdx] = 0;
                 new File(target).delete();
-            }
+            }*/
+            new File(target).delete();
+            phase++;
 
-            if (mergeCount > totalRuns * 2) {
+            /*if (mergeCount > totalRuns * 2) {
                 System.out.println("Примусове завершення: досягнуто фінального стану");
                 break;
-            }
+            }*/
 
             //new File(target).delete(); // очищаємо приймач
 
-            phase++;
         }
 
         /*for (int i = 0; i < 3; i++) {
@@ -379,7 +409,7 @@ public class PolyphaseSortBasicAlgorithm {
 */
 
 
-    private static int[] distributeInitialRuns(int chunkSize, String[] tempFiles) {
+    /*private static int[] distributeInitialRuns(int chunkSize, String[] tempFiles) {
         int[] runCounts = new int[3];  // 0 = temp1, 1 = temp2, 2 = temp3 (спочатку 0)
 
         try (Scanner reader = new Scanner(new BufferedReader(new FileReader("input.txt")));
@@ -425,7 +455,58 @@ public class PolyphaseSortBasicAlgorithm {
 
         return runCounts;
     }
-
+*/
+    private static int[] distributeInitialRuns(int chunkSize, String[] tempFiles) {
+        int[] runCounts = new int[3];
+        long totalRunsEstimate = (totalLines + chunkSize - 1L) / chunkSize;
+        long[] fib = getFibonacciDistribution(totalRunsEstimate);
+        long targetForTemp1 = fib[0]; // більше
+        long targetForTemp2 = fib[1]; // менше
+        System.out.printf("Цільовий розподіл за Фібоначчі: temp1 ~ %d, temp2 ~ %d (сума %d з %d)%n",
+                targetForTemp1, targetForTemp2, targetForTemp1 + targetForTemp2, totalRunsEstimate);
+        long writtenTo1 = 0;
+        long writtenTo2 = 0;
+        try (Scanner reader = new Scanner(new File("input.txt"));
+             PrintWriter file1 = new PrintWriter(new FileWriter(tempFiles[0], true));
+             PrintWriter file2 = new PrintWriter(new FileWriter(tempFiles[1], true))) {
+            while (reader.hasNextLine()) {
+                List<String> chunk = new ArrayList<>();
+                for (int i = 0; i < chunkSize && reader.hasNextLine(); i++) {
+                    chunk.add(reader.nextLine());
+                }
+                if (chunk.isEmpty()) break;
+                Collections.sort(chunk, Comparator.comparing(s -> s.charAt(0)));
+                PrintWriter target = (writtenTo1 < targetForTemp1) ? file1 : file2;
+                for (String line : chunk) {
+                    target.println(line);
+                }
+                target.println(); // маркер
+                if (writtenTo1 < targetForTemp1) {
+                    writtenTo1++;
+                    runCounts[0]++;
+                } else {
+                    writtenTo2++;
+                    runCounts[1]++;
+                }
+                totalRuns++;
+            }
+            // Dummies якщо потрібно (порожні серії)
+            long dummies = (targetForTemp1 + targetForTemp2) - totalRuns;
+            if (dummies > 0) {
+                PrintWriter dummyTarget = file1; // Додаємо в temp1
+                for (long i = 0; i < dummies; i++) {
+                    dummyTarget.println();
+                }
+                runCounts[0] += dummies;
+                writtenTo1 += dummies;
+            }
+            /*System.out.printf("Фактичний розподіл: temp1 = %d серій, temp2 = %d серій%n",
+                    writtenTo1, writtenTo2);*/
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return runCounts;
+    }
 
     private static long[] getFibonacciDistribution(long totalRuns) {
         if (totalRuns <= 1) {
@@ -635,43 +716,6 @@ public class PolyphaseSortBasicAlgorithm {
 */
 
 
-    private static int[] distributeRuns(String fromFile, String to1, String to2, int totalRunsInFrom) {
-        int[] newCounts = new int[2]; // to1, to2
-
-        try (Scanner reader = new Scanner(new BufferedReader(new FileReader(fromFile)));
-             PrintWriter writer1 = new PrintWriter(new BufferedWriter(new FileWriter(to1), 8192));
-             PrintWriter writer2 = new PrintWriter(new BufferedWriter(new FileWriter(to2), 8192))) {
-
-            int targetTo1 = (totalRunsInFrom + 1) / 2;
-            int writtenTo1 = 0;
-
-            while (reader.hasNextLine()) {
-                PrintWriter current = (writtenTo1 < targetTo1) ? writer1 : writer2;
-                String line;
-                boolean hasContent = false;
-
-                while (reader.hasNextLine() && !(line = reader.nextLine()).isEmpty()) {
-                    current.println(line);
-                    hasContent = true;
-                }
-
-                if (hasContent) {
-                    current.println(); // маркер кінця серії
-                    if (writtenTo1 < targetTo1) {
-                        writtenTo1++;
-                        newCounts[0]++;
-                    } else {
-                        newCounts[1]++;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return newCounts;
-    }
-
     /*private static int[] distributeRuns(String fromFile, String to1, String to2, int totalRunsInFrom) {
         int[] newCounts = new int[2];  // [to1, to2]
 
@@ -724,6 +768,120 @@ public class PolyphaseSortBasicAlgorithm {
         return newCounts;
     }
 */
+
+
+    /*private static int[] distributeRuns(String fromFile, String to1, String to2, int totalRunsInFrom) {
+        int[] newCounts = new int[2]; // to1, to2
+
+        try (Scanner reader = new Scanner(new BufferedReader(new FileReader(fromFile)));
+             PrintWriter writer1 = new PrintWriter(new BufferedWriter(new FileWriter(to1), 8192));
+             PrintWriter writer2 = new PrintWriter(new BufferedWriter(new FileWriter(to2), 8192))) {
+
+            int targetTo1 = (totalRunsInFrom + 1) / 2;
+            int writtenTo1 = 0;
+
+            while (reader.hasNextLine()) {
+                PrintWriter current = (writtenTo1 < targetTo1) ? writer1 : writer2;
+                String line;
+                boolean hasContent = false;
+
+                while (reader.hasNextLine() && !(line = reader.nextLine()).isEmpty()) {
+                    current.println(line);
+                    hasContent = true;
+                }
+
+                if (hasContent) {
+                    current.println(); // маркер кінця серії
+                    if (writtenTo1 < targetTo1) {
+                        writtenTo1++;
+                        newCounts[0]++;
+                    } else {
+                        newCounts[1]++;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return newCounts;
+    }
+*/
+    /*private static int[] distributeRuns(String fromFile, String to1, String to2, int totalRunsInFrom) {
+        int[] newCounts = new int[2]; // to1, to2
+        long[] fib = getFibonacciDistribution(totalRunsInFrom);
+        long targetForTo1 = fib[0]; // більше
+        long targetForTo2 = fib[1]; // менше
+        long writtenTo1 = 0;
+        try (Scanner reader = new Scanner(new BufferedReader(new FileReader(fromFile)));
+             PrintWriter writer1 = new PrintWriter(new BufferedWriter(new FileWriter(to1), 8192));
+             PrintWriter writer2 = new PrintWriter(new BufferedWriter(new FileWriter(to2), 8192))) {
+            while (reader.hasNextLine()) {
+                PrintWriter current = (writtenTo1 < targetForTo1) ? writer1 : writer2;
+                String line;
+                boolean hasContent = false;
+                while (reader.hasNextLine() && !(line = reader.nextLine()).isEmpty()) {
+                    current.println(line);
+                    hasContent = true;
+                }
+                if (hasContent) {
+                    current.println(); // маркер кінця серії
+                    if (writtenTo1 < targetForTo1) {
+                        writtenTo1++;
+                        newCounts[0]++;
+                    } else {
+                        newCounts[1]++;
+                    }
+                }
+            }
+            // Додаємо dummy-серії (порожні), якщо потрібно
+            long totalWritten = writtenTo1 + newCounts[1];
+            long dummiesNeeded = (targetForTo1 + targetForTo2) - totalWritten;
+            if (dummiesNeeded > 0) {
+                for (long i = 0; i < dummiesNeeded; i++) {
+                    writer1.println(); // порожня серія в більший файл
+                }
+                newCounts[0] += dummiesNeeded;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return newCounts;
+    }
+*/
+    private static int[] distributeRuns(String fromFile, String to1, String to2, int totalRuns) {
+        int[] counts = new int[2];
+        int half = totalRuns / 2;
+        int written = 0;
+
+        try (Scanner r = new Scanner(new File(fromFile));
+             PrintWriter w1 = new PrintWriter(new FileWriter(to1));
+             PrintWriter w2 = new PrintWriter(new FileWriter(to2))) {
+
+            while (r.hasNextLine()) {
+                PrintWriter out = (written < half) ? w1 : w2;
+                boolean hasData = false;
+
+                while (r.hasNextLine()) {
+                    String line = r.nextLine();
+                    if (line.isEmpty()) break;
+                    out.println(line);
+                    hasData = true;
+                }
+
+                if (hasData) {
+                    out.println();
+                    if (written < half) counts[0]++;
+                    else counts[1]++;
+                    written++;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return counts;
+    }
+
 
 
     static class RunEntry {
