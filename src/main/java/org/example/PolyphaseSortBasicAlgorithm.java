@@ -2,6 +2,7 @@ package org.example;
 
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class PolyphaseSortBasicAlgorithm {
@@ -10,6 +11,7 @@ public class PolyphaseSortBasicAlgorithm {
     private static int mergeCount = 0;
 
     public static void main(String[] args) {
+        System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
         long start = System.currentTimeMillis();
 
         generateLargeFile("input.txt", 1024);  // 1 ГБ
@@ -84,13 +86,14 @@ public class PolyphaseSortBasicAlgorithm {
         System.out.printf("Створено %d серій з %d рядків%n", totalRuns, totalLines);
 
         int phase = 0;
+        while (countNonZero(runCounts) > 1) {
         //while (runCounts[0] + runCounts[1] + runCounts[2] > 1) {
-        while (true) {
+        /*while (true) {
             int nonZero = 0;
             for (int c : runCounts) {
                 if (c > 0) nonZero++;
             }
-            if (nonZero == 1) break;
+            if (nonZero == 1) break;*/
 
             /*int targetIdx = phase % 3;
             int source1Idx = (phase + 1) % 3;
@@ -113,7 +116,13 @@ public class PolyphaseSortBasicAlgorithm {
 
             int min = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
             int remaining = Math.abs(runCounts[source1Idx] - runCounts[source2Idx]);
-            runCounts[targetIdx] = min + remaining;
+            /*runCounts[targetIdx] = min + remaining;
+            runCounts[source1Idx] = 0;
+            runCounts[source2Idx] = 0;*/
+            int mergedRuns = Math.min(runCounts[source1Idx], runCounts[source2Idx]);
+            int leftover = Math.abs(runCounts[source1Idx] - runCounts[source2Idx]);
+
+            runCounts[targetIdx] = mergedRuns + leftover;
             runCounts[source1Idx] = 0;
             runCounts[source2Idx] = 0;
 
@@ -125,16 +134,27 @@ public class PolyphaseSortBasicAlgorithm {
             runCounts[source2Idx] = newCounts[1];
             runCounts[targetIdx] = 0;
 
+            new File(target).delete(); // очищаємо приймач
+
             phase++;
         }
 
-        for (int i = 0; i < 3; i++) {
+        /*for (int i = 0; i < 3; i++) {
             if (runCounts[i] == 1) {
                 new File(tempFiles[i]).renameTo(new File("output.txt"));
                 System.out.println("Знайдено фінальний файл: " + tempFiles[i]);
                 break;
             }
+        }*/
+        for (int i = 0; i < 3; i++) {
+            if (runCounts[i] > 0) {
+                new File("output.txt").delete();
+                new File(tempFiles[i]).renameTo(new File("output.txt"));
+                System.out.println("Знайдено фінальний файл: " + tempFiles[i]);
+                break;
+            }
         }
+
 
         for (String f : tempFiles) {
             new File(f).delete();
@@ -195,6 +215,14 @@ public class PolyphaseSortBasicAlgorithm {
         return new int[]{targetIdx, sources.get(0), sources.get(1)};
     }
 */
+    private static int countNonZero(int[] counts) {
+        int c = 0;
+        for (int x : counts) {
+            if (x > 0) c++;
+        }
+        return c;
+    }
+
     private static int[] chooseFilesToMerge(int[] counts) {
         // У polyphase ми завжди зливаємо два файли з **найменшою** кількістю серій
         // у файл з **найбільшою** кількістю серій
